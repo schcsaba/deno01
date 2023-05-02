@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  app:
+    build: ./app
+    ports:
+      - '1993:1993'
+    volumes:
+      - ./app:/app
+    stdin_open: true
+    tty: true
+    platform: linux/arm64/v8
