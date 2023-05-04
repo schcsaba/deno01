@@ -1,11 +1,21 @@
 version: '3.8'
 services:
-  app:
-    build: ./app
+  backend:
+    build: ./backend
     ports:
       - '1993:1993'
     volumes:
-      - ./app:/app
+      - ./backend:/app
     stdin_open: true
     tty: true
     platform: linux/arm64/v8
+  frontend:
+    build: ./frontend
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./frontend/src:/app/src
+    stdin_open: true
+    tty: true
+    depends_on:
+      - backend
