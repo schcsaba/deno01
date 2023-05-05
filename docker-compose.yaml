@@ -6,6 +6,8 @@ services:
       - '1993:1993'
     volumes:
       - ./backend:/app
+    env_file:
+      - ./env/backend.env
     stdin_open: true
     tty: true
     platform: linux/arm64/v8

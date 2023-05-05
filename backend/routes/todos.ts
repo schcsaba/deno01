@@ -1,41 +1,60 @@
-import { Router } from "https://deno.land/x/oak/mod.ts";
+import { Router } from 'https://deno.land/x/oak/mod.ts';
+import { TodoDbSchema, getAllTodos, insertOneTodo, updateOneTodo, deleteOneTodo } from "../helpers/db_client.ts";
 
 const router = new Router();
 
-interface Todo {
-    id: string;
-    text: string;
-}
-
-let todos: Todo[] = [];
-
-router.get('/todos', ctx => {
-    ctx.response.body = { todos: todos };
-});
-router.post('/todos', async ctx => {
-    const body = await ctx.request.body();
-    const data = await body.value;
-    const newTodo: Todo = {
-        id: new Date().toISOString(),
-        text: data.text
-    };
-    todos.push(newTodo);
-    ctx.response.body = { message: 'Created todo!', todo: newTodo };
-});
-router.put('/todos/:todoId', async ctx => {
-    const body = await ctx.request.body();
-    const data = await body.value;
-    const tid = ctx.params.todoId;
-    const todoIndex = todos.findIndex(todo => {
-        return todo.id === tid;
+router.get('/todos', async (ctx) => {
+    const mongoDbTodos = await getAllTodos();
+    const todos = mongoDbTodos.map((mongoDbTodo: TodoDbSchema) => {
+        return { id: mongoDbTodo._id!.toString(), text: mongoDbTodo.text } // $oid holds the same value as a string
     });
-    todos[todoIndex] = { id: todos[todoIndex].id, text: data.text };
-    ctx.response.body = { message: 'Updated todo!' };
+
+    ctx.response.body = { todos }; // {id: string, text: string }[]
 });
-router.delete('/todos/:todoId', ctx => {
-    const tid = ctx.params.todoId;
-    todos = todos.filter(todo => todo.id !== tid);
-    ctx.response.body = { message: 'Deleted todo!' };
+
+router.post('/todos', async (ctx) => {
+    const { request, response } = ctx;
+    const body = request.body();
+    const { text } = await body.value;
+
+    const newTodo: TodoDbSchema = { text };
+    const insertedObjectId = await insertOneTodo(newTodo);
+
+    if (insertedObjectId) {
+        response.body = { message: 'The todo was successfully created!', todo: { ...newTodo, id: insertedObjectId.toString() } };
+    } else {
+        response.status = 500;
+        response.body = { message: 'The todo was not created!' };
+    }
+});
+
+router.put('/todos/:todoId', async (ctx) => {
+    const { request, response, params: { todoId } } = ctx;
+    const body = request.body();
+    const { text } = await body.value;
+
+    const newTodo: TodoDbSchema = { text };
+    const wasUpdated: boolean = await updateOneTodo(todoId, newTodo);
+
+    if (wasUpdated) {
+        response.body = { message: 'The todo was successfully updated!', todo: newTodo };
+    } else {
+        response.status = 500;
+        response.body = { message: 'The todo was not updated!' };
+    }
+});
+
+router.delete('/todos/:todoId', async (ctx) => {
+    const { response, params: { todoId } } = ctx;
+
+    const deletedAmount: number = await deleteOneTodo(todoId);
+
+    if (deletedAmount > 0) {
+        response.body = { message: 'The todo was successfully deleted!' };
+    } else {
+        response.status = 500;
+        response.body = { message: 'The todo was not deleted!' };
+    }
 });
 
 export default router;
